@@ -8,7 +8,6 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 load_dotenv()
 
-
 def extract_pdf_to_jsonl(pdf_path, output_jsonl_path):
     """
     Extract text from a PDF and save it into a JSONL file,

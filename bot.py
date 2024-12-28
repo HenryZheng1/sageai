@@ -95,7 +95,6 @@ def process_input(user_input):
     except Exception as e:
         return f"Error with GPT-4o completion: {e}"
 
-
 if __name__ == "__main__":
     print("Welcome to the GPT-4o + Pinecone chatbot! Type 'exit' or 'quit' to leave.")
     while True:
@@ -103,6 +102,5 @@ if __name__ == "__main__":
         if user_input.lower() in ("exit", "quit"):
             print("Goodbye!")
             break
-
         response = process_input(user_input)
         print(f"\nAssistant: {response}\n")

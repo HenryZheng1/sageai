@@ -98,8 +98,8 @@ def main():
     (Single-threaded, but batched approach)
     """
     # Configuration
-    input_file = "./validation_results.jsonl"
-    output_file = "./final_results.jsonl"
+    input_file = "./datasets/validation_results.jsonl"
+    output_file = "./datasets/final_results.jsonl"
     model_name = "gpt-4o-mini"
     
     # How many lines per batch
