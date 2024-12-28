@@ -7,15 +7,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 load_dotenv()
 
-def initialize_client():
-    """
-    Initialize and return an AzureOpenAI client.
-    """
-    return AzureOpenAI(
-        azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-        api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-        api_version="2024-02-01",
-    )
+
 
 def extract_pdf_to_jsonl(pdf_path, output_jsonl_path):
     """
@@ -173,10 +165,14 @@ def generate_excerpts_from_content(client, input_jsonl, output_jsonl, model_name
         print(f"Excerpts saved to {output_jsonl}")
     except Exception as e:
         print(f"Error during excerpt generation: {e}")
-
+from client import AzureClient
 if __name__ == "__main__":
     # Initialize client
-    client = initialize_client()
+    client = AzureClient(
+        endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
+        api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+        api_version="2024-02-01"
+    )
 
     # Paths for PDF and output files
     pdf_path = "./documents/calc.pdf"             # Your PDF path

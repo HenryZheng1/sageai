@@ -1,19 +1,9 @@
 import os
 import json
 from dotenv import load_dotenv
-from openai import AzureOpenAI
+from client import AzureClient
 
 load_dotenv()
-
-def initialize_client():
-    """
-    Initializes the Azure OpenAI client using environment variables.
-    """
-    return AzureOpenAI(
-        azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-        api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-        api_version="2024-02-01"
-    )
 
 def chunker(seq, size):
     """
@@ -116,7 +106,11 @@ def main():
     BATCH_SIZE = 5
 
     # Initialize Azure GPT client
-    client = initialize_client()
+    client = AzureClient(
+        endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
+        api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+        api_version="2024-02-01"
+    )
 
     # Read all lines (filter out any blank lines)
     with open(input_file, "r", encoding="utf-8") as infile:

@@ -1,8 +1,6 @@
 import os
 from dotenv import load_dotenv
-from openai import AzureOpenAI
-from pinecone import Pinecone
-
+from client import AzureClient, PineconeClient
 # Load environment variables
 load_dotenv()
 
@@ -19,33 +17,6 @@ PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX_NAME")
 CHAT_MODEL_NAME = "gpt-4o"                   # The name of your Azure OpenAI chat deployment
 EMBED_MODEL_NAME = "text-embedding-3-large"  # The name of your Azure OpenAI embedding model
 
-# ------------------------------------------------------------------------------
-# 2. Initialize Azure OpenAI
-# ------------------------------------------------------------------------------
-def initialize_azure_client():
-    """
-    Create and return an AzureOpenAI client object.
-    """
-    return AzureOpenAI(
-        azure_endpoint=AZURE_OPENAI_ENDPOINT,
-        api_key=AZURE_OPENAI_API_KEY,
-        api_version=AZURE_API_VERSION
-    )
-
-# ------------------------------------------------------------------------------
-# 3. Initialize Pinecone
-# ------------------------------------------------------------------------------
-def initialize_pinecone():
-    """
-    Create and return a Pinecone index instance.
-    """
-    pinecone_client = Pinecone(api_key=PINECONE_API_KEY)
-    index = pinecone_client.Index(PINECONE_INDEX_NAME)
-    return index
-
-# ------------------------------------------------------------------------------
-# 4. Process Input
-# ------------------------------------------------------------------------------
 def process_input(user_input):
     """
     Processes a single input using Pinecone and GPT-4o.
@@ -57,8 +28,15 @@ def process_input(user_input):
         str: The model's response.
     """
     # Initialize clients
-    client = initialize_azure_client()
-    index = initialize_pinecone()
+    client = AzureClient(
+        endpoint=AZURE_OPENAI_ENDPOINT,
+        api_key=AZURE_OPENAI_API_KEY,
+        api_version=AZURE_API_VERSION
+    )
+    index = PineconeClient(
+        api_key=PINECONE_API_KEY,
+        index_name=PINECONE_INDEX_NAME
+    ).index
 
     # 4.1 Generate embedding (vector) for the user query
     try:
@@ -118,9 +96,7 @@ def process_input(user_input):
     except Exception as e:
         return f"Error with GPT-4o completion: {e}"
 
-# ------------------------------------------------------------------------------
-# 5. Main Entry for Interactive Console Chat (Optional)
-# ------------------------------------------------------------------------------
+
 if __name__ == "__main__":
     print("Welcome to the GPT-4o + Pinecone chatbot! Type 'exit' or 'quit' to leave.")
     while True:
