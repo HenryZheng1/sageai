@@ -33,6 +33,6 @@ def reformat_jsonl(input_file, output_file):
             except Exception as e:
                 print(f"Error on line {line_number}: {e}")
 if __name__ == '__main__':
-    input_file = "validation_results_base.jsonl"  # Replace with your input file path
-    output_file = "conv_base.jsonl"  # Replace with your desired output file path
+    input_file = "./datasets/validation_results_base.jsonl"  # Replace with your input file path
+    output_file = "./datasets/conv_base.jsonl"  # Replace with your desired output file path
     reformat_jsonl(input_file, output_file)
