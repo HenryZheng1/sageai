@@ -1,3 +1,4 @@
+from client import AzureClient
 import os
 import json
 import pymupdf
@@ -6,6 +7,7 @@ from openai import AzureOpenAI
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 load_dotenv()
+
 
 def extract_pdf_to_jsonl(pdf_path, output_jsonl_path):
     """
@@ -42,6 +44,7 @@ def extract_pdf_to_jsonl(pdf_path, output_jsonl_path):
     except Exception as e:
         print(f"Error during PDF extraction: {e}")
 
+
 def _request_qa_pair(client, content, model_name, call_index):
     """
     Helper function to send one request to the model to generate Q&A pairs.
@@ -59,7 +62,8 @@ def _request_qa_pair(client, content, model_name, call_index):
         {
             "role": "user",
             "content": (
-                f"Generate 10 unique and involved calculus-based question-answer pairs (variant #{call_index+1}) "
+                f"Generate 10 unique and involved calculus-based question-answer pairs (variant #{
+                    call_index+1}) "
                 "based on concepts and topics covered in the following text:\n\n"
                 f"{content}\n\n"
                 "Each question-answer pair must be complete and self-contained, without referencing "
@@ -79,11 +83,12 @@ def _request_qa_pair(client, content, model_name, call_index):
 
     return response
 
+
 def generate_qa_from_content(client, input_jsonl, output_jsonl, model_name):
     """
     Reads each line from the JSONL file (where each line is a pair of pages),
     and for each line, makes 10 parallel requests to the model.
-    
+
     Each request returns 10 Q&A pairs, so in total we'll get 100 Q&A pairs 
     (in 10 separate responses) for every pair of pages.
 
@@ -123,7 +128,8 @@ def generate_qa_from_content(client, input_jsonl, output_jsonl, model_name):
                             response = future.result()
 
                             # Extract the raw text from the first choice
-                            qa_pairs_raw = response.choices[0].message.content.strip()
+                            qa_pairs_raw = response.choices[0].message.content.strip(
+                            )
                             usage_data = {
                                 "completion_tokens": response.usage.completion_tokens,
                                 "prompt_tokens": response.usage.prompt_tokens,
@@ -151,7 +157,8 @@ def generate_qa_from_content(client, input_jsonl, output_jsonl, model_name):
                                     "model": response.model,
                                     "response_id": response.id,
                                 }
-                                outfile.write(json.dumps(out_record, ensure_ascii=False) + "\n")
+                                outfile.write(json.dumps(
+                                    out_record, ensure_ascii=False) + "\n")
 
                         except Exception as e:
                             # If a call fails, we can log an error line if needed
@@ -159,12 +166,14 @@ def generate_qa_from_content(client, input_jsonl, output_jsonl, model_name):
                                 "page_number": page_number,
                                 "error": str(e),
                             }
-                            outfile.write(json.dumps(error_record, ensure_ascii=False) + "\n")
+                            outfile.write(json.dumps(
+                                error_record, ensure_ascii=False) + "\n")
 
         print(f"QA pairs saved to {output_jsonl}")
     except Exception as e:
         print(f"Error during QA generation: {e}")
-from client import AzureClient
+
+
 if __name__ == "__main__":
     # Initialize client
     client = AzureClient(
@@ -183,4 +192,5 @@ if __name__ == "__main__":
     extract_pdf_to_jsonl(pdf_path, output_jsonl_path)
 
     # 2) Generate QA pairs from each page-pair (10 parallel calls per page-pair)
-    generate_qa_from_content(client, output_jsonl_path, qa_output_path, model_name)
+    generate_qa_from_content(client, output_jsonl_path,
+                             qa_output_path, model_name)

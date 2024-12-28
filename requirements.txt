@@ -1,0 +1,11 @@
+absl==0.0
+numpy==2.2.1
+openai==1.58.1
+pinecone==5.4.2
+pymupdf==1.25.1
+python-dotenv==1.0.1
+setuptools==75.6.0
+six==1.16.0
+sympy==1.13.3
+tensorflow==2.18.0
+tqdm==4.67.1
