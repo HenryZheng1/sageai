@@ -15,7 +15,7 @@ AZURE_API_VERSION = "2024-02-01"
 
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 PINECONE_INDEX_HOST = os.getenv("PINECONE_INDEX_HOST")
-
+PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX_NAME")
 CHAT_MODEL_NAME = "gpt-4o"                   # The name of your Azure OpenAI chat deployment
 EMBED_MODEL_NAME = "text-embedding-3-large"  # The name of your Azure OpenAI embedding model
 
@@ -40,7 +40,7 @@ def initialize_pinecone():
     Create and return a Pinecone index instance.
     """
     pinecone_client = Pinecone(api_key=PINECONE_API_KEY)
-    index = pinecone_client.Index(host=PINECONE_INDEX_HOST)
+    index = pinecone_client.Index(PINECONE_INDEX_NAME)
     return index
 
 # ------------------------------------------------------------------------------

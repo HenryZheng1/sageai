@@ -1,7 +1,7 @@
 import json
 
 def reformat_jsonl(input_file, output_file):
-    with open(input_file, 'r') as infile, open(output_file, 'w') as outfile:
+    with open(input_file, 'r', encoding='utf-8') as infile, open(output_file, 'w') as outfile:
         for line_number, line in enumerate(infile, start=1):
             try:
                 # Parse the JSON line
@@ -13,7 +13,7 @@ def reformat_jsonl(input_file, output_file):
                     continue
                 
                 # Ensure required keys are present
-                if "question" not in record or "answer" not in record:
+                if "question" not in record or "gold_answer" not in record:
                     print(f"Skipping line {line_number}: Missing 'question' or 'answer'")
                     continue
                 
@@ -21,7 +21,7 @@ def reformat_jsonl(input_file, output_file):
                 messages = [
                     {"role": "system", "content": ""},
                     {"role": "user", "content": record["question"]},
-                    {"role": "assistant", "content": record["answer"]}
+                    {"role": "assistant", "content": record["gold_answer"]}
                 ]
 
                 # Write the reformatted JSON to the output file
@@ -34,6 +34,6 @@ def reformat_jsonl(input_file, output_file):
                 print(f"Error on line {line_number}: {e}")
 
 # Example usage
-input_file = "./qa_pairs.jsonl"  # Replace with your input file path
-output_file = "./qa_pairs_formatted.jsonl"  # Replace with your desired output file path
+input_file = "validation_results_base.jsonl"  # Replace with your input file path
+output_file = "conv_base.jsonl"  # Replace with your desired output file path
 reformat_jsonl(input_file, output_file)

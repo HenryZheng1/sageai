@@ -29,7 +29,7 @@ def call_gpt4o(client, question: str) -> str:
 
     try:
         response = client.chat.completions.create(
-            model="gpt-4o",  # Adjust to your actual deployment name if needed
+            model="gpt-4o-2024-08-06-qa",  # Adjust to your actual deployment name if needed
             messages=messages,
         )
         return response.choices[0].message.content.strip()
@@ -82,7 +82,7 @@ def main():
 
     # Open the output file once
     with open(output_file, "w", encoding="utf-8") as f_out:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
             futures = []
             total = len(dataset)
 
