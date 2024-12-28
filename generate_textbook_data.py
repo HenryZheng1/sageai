@@ -95,7 +95,7 @@ def generate_excerpts_from_content(client, input_jsonl, output_jsonl, model_name
     Reads each line from the JSONL file (where each line is a pair of pages),
     and for each line, makes 10 parallel requests to the model (each returning 10 excerpts).
     
-    That yields 100 excerpts (10×10) for every pair of pages.
+    That yields 100 excerpts (10x10) for every pair of pages.
 
     The final output is a JSONL in which each line corresponds to one excerpt,
     including page range and token usage.
@@ -179,9 +179,9 @@ if __name__ == "__main__":
     client = initialize_client()
 
     # Paths for PDF and output files
-    pdf_path = "./calc.pdf"             # Your PDF path
-    output_jsonl_path = "./output1.jsonl" # Page-paired text
-    excerpts_output_path = "./excerpts.jsonl" # Final JSONL with excerpts
+    pdf_path = "./documents/calc.pdf"             # Your PDF path
+    output_jsonl_path = "./datasets/output1.jsonl" # Page-paired text
+    excerpts_output_path = "./datasets/excerpts.jsonl" # Final JSONL with excerpts
     model_name = "gpt-4o"  # Or your Azure OpenAI model name
 
     # 1) Extract PDF content in pairs

@@ -46,7 +46,7 @@ def worker(item, idx, total, file_obj, file_lock):
 
 def main():
     input_file = "./mathematics_dataset_json/math_data/train-medium/calculus__differentiate.json"
-    output_file = "./validation_results.jsonl"
+    output_file = "./datasets/validation_results.jsonl"
 
     print("Loading dataset...")
     with open(input_file, "r", encoding="utf-8") as f:

@@ -177,9 +177,9 @@ if __name__ == "__main__":
     client = initialize_client()
 
     # Paths for PDF and output files
-    pdf_path = "./calc.pdf"
-    output_jsonl_path = "./output.jsonl"       # Page-paired text
-    qa_output_path = "./qa_pairs.jsonl"        # Individual Q&A pairs
+    pdf_path = "./documents/calc.pdf"
+    output_jsonl_path = "./datasets/output.jsonl"       # Page-paired text
+    qa_output_path = "./datasets/qa_pairs.jsonl"        # Individual Q&A pairs
     model_name = "gpt-4o"  # Or your Azure OpenAI model name
 
     # 1) Extract PDF content in pairs

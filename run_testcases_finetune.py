@@ -66,7 +66,7 @@ def worker(item, idx, total, file_obj, file_lock, client):
 
 def main():
     input_file = "./mathematics_dataset_json/math_data/train-medium/calculus__differentiate.json"
-    output_file = "./validation_results_base.jsonl"
+    output_file = "./datasets/validation_results_base.jsonl"
 
     # Initialize the AzureOpenAI client
     client = initialize_client()

@@ -8,10 +8,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # NEW Pinecone classes (2.x+)
 from pinecone import Pinecone
-
 # Azure OpenAI import
 from openai import AzureOpenAI
-
 load_dotenv()
 
 # ------------------------------------------------------------------------------
@@ -26,7 +24,12 @@ PINECONE_INDEX_HOST = os.getenv("PINECONE_INDEX_HOST")
 
 MODEL_NAME = "text-embedding-3-large"
 EMBEDDING_DIMENSION = 3072
+BASE_DIR = './datasets'
 JSONL_FILE = "./qa_pairs_formatted.jsonl"
+JSONL_FILE = os.path.join(BASE_DIR, JSONL_FILE)
+
+
+
 
 # ------------------------------------------------------------------------------
 # 2. Initialize Azure OpenAI
@@ -100,7 +103,8 @@ def process_line(line: str) -> str:
 
     # Return the (abbreviated) question for logging
     return question
-
+def test():
+    print(pc.list_indexes())
 # ------------------------------------------------------------------------------
 # 5. Read JSONL, run with 20 threads, and handle results
 # ------------------------------------------------------------------------------
@@ -125,3 +129,4 @@ if __name__ == "__main__":
                 print(f"Error processing line #{line_num}: {e}")
 
     print("All done!")
+    test()
