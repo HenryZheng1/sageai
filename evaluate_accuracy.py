@@ -1,6 +1,5 @@
 import os
 import json
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # For loading environment variables
 from dotenv import load_dotenv
@@ -85,12 +84,12 @@ def process_line(line: str, client, model_name: str) -> dict:
 def main():
     """
     Sets the required variables and processes input JSONL to evaluate answers using Azure GPT.
+    This version runs in a single thread.
     """
-    # Set paths, model name, and worker count directly
+    # Set paths, model name, etc.
     input_file = "./validation_results.jsonl"
     output_file = "./final_results.jsonl"
-    model_name = "gpt-4o"
-    max_workers = 3
+    model_name = "gpt-4o-mini"
 
     # Initialize Azure GPT client
     client = initialize_client()
@@ -102,25 +101,18 @@ def main():
     total_count = len(lines)
     print(f"Found {total_count} lines to process.\n")
 
-    with open(output_file, "w", encoding="utf-8") as outfile, \
-         ThreadPoolExecutor(max_workers=max_workers) as executor:
+    all_results = []
 
-        # Submit all lines to the thread pool
-        futures = [executor.submit(process_line, line, client, model_name) for line in lines]
-
-        # We'll store all completed results so we can compute statistics at the end
-        all_results = []
-
-        # Collect results as they complete
-        for i, future in enumerate(as_completed(futures)):
-            processed_record = future.result()
+    with open(output_file, "w", encoding="utf-8") as outfile:
+        for i, line in enumerate(lines):
+            processed_record = process_line(line, client, model_name)
             all_results.append(processed_record)
 
             # Write to output file immediately
             outfile.write(json.dumps(processed_record, ensure_ascii=False) + "\n")
             outfile.flush()
 
-            # Print progress: i+1 because i is 0-based
+            # Print progress
             print(f"{i+1}/{total_count}")
 
     # Now compute correctness statistics
