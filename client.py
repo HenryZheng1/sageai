@@ -12,3 +12,7 @@ class PineconeClient(Pinecone):
         super().__init__(api_key=api_key)
         if index_name:
             self.index = self.Index(index_name)
+    def clear(self):
+        response = self.index.delete(delete_all=True)
+        print("Delete response:", response)
+        print("All vectors have been removed from the index.")
