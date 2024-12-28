@@ -1,12 +1,6 @@
 import os
 import json
-from concurrent.futures import ThreadPoolExecutor, as_completed
-
-# For loading environment variables
 from dotenv import load_dotenv
-
-# AzureOpenAI is part of the openai package when configured for Azure usage
-# pip install openai
 from openai import AzureOpenAI
 
 load_dotenv()
@@ -21,118 +15,188 @@ def initialize_client():
         api_version="2024-02-01"
     )
 
-def azure_compare(client, question: str, gold_answer: str, model_answer: str, model_name: str) -> str:
+def chunker(seq, size):
     """
-    Calls Azure GPT to decide whether the model_answer is "correct" or "incorrect",
-    comparing it to gold_answer. Returns one of: "correct", "incorrect", or "unknown".
+    Yields successive chunks of size `size` from list `seq`.
     """
-    messages = [
-        {
-            "role": "system",
-            "content": (
-                "You are a math expert. The user will give you a question, a gold (reference) answer, "
-                "and a student's answer. You must determine if the student's final answer matches the gold answer. "
-                "If they are equivalent or correct, respond with the single word: correct. Otherwise respond with the single word: incorrect."
-            ),
-        },
-        {
-            "role": "user",
-            "content": (
-                f"Question: {question}\n"
-                f"Gold Answer: {gold_answer}\n"
-                f"Student Answer: {model_answer}\n\n"
-                "Respond only with either 'correct' or 'incorrect'. No additional explanation."
-            ),
-        },
-    ]
+    for pos in range(0, len(seq), size):
+        yield seq[pos : pos + size]
 
+def build_batch_messages(batch_data):
+    """
+    Given a list of items, each item is a dict with:
+      - "question"
+      - "gold_answer"
+      - "model_answer"
+
+    Returns the system and user messages for Azure GPT.
+
+    The GPT is instructed to:
+      - Output exactly one word ('correct' or 'incorrect') per item,
+      - In the same order as the items,
+      - One result per line, no extra explanations.
+    """
+    # System role message
+    system_message = {
+        "role": "system",
+        "content": (
+            "You are a math expert. You will receive multiple items in a single request. "
+            "Each item has a question, a gold (reference) answer, and a student's answer. "
+            "For each item, determine if the student's final answer is correct (matches the gold answer) "
+            "or incorrect. Output exactly one word per item: 'correct' or 'incorrect', in the same order, "
+            "one result per line, with no extra explanation."
+        ),
+    }
+
+    # Build the user content string
+    user_content_lines = []
+    for idx, item in enumerate(batch_data, start=1):
+        user_content_lines.append(f"Item #{idx}:")
+        user_content_lines.append(f"Question: {item['question']}")
+        user_content_lines.append(f"Gold Answer: {item['gold_answer']}")
+        user_content_lines.append(f"Student Answer: {item['model_answer']}")
+        user_content_lines.append("")  # blank line to separate items
+
+    user_message = {
+        "role": "user",
+        "content": "\n".join(user_content_lines)
+    }
+
+    return [system_message, user_message]
+
+def azure_compare_batch(client, batch_data, model_name):
+    """
+    Calls Azure GPT for a batch of items. Returns a list of 'correct', 'incorrect', or 'unknown' 
+    evaluations in the same order as `batch_data`.
+
+    1. Build one prompt with all items.
+    2. Expect one line per item in the response.
+    3. Parse each line into 'correct' or 'incorrect' (or 'unknown' if parsing fails).
+    """
+    messages = build_batch_messages(batch_data)
+    
     try:
         response = client.chat.completions.create(
             model=model_name,
             messages=messages,
         )
-        evaluation = response.choices[0].message.content.strip().lower()
+        full_response = response.choices[0].message.content.strip()
 
-        # Enforce strict parsing: if GPT does not return exactly "correct" or "incorrect", set "unknown"
-        if evaluation not in ["correct", "incorrect"]:
-            evaluation = "unknown"
+        # The GPT should return one line per item, each "correct" or "incorrect"
+        lines = full_response.splitlines()
+        lines = [line.strip().lower() for line in lines if line.strip()]
 
-        return evaluation
+        # Map lines back to items
+        results = []
+        for i in range(len(batch_data)):
+            if i < len(lines) and lines[i] in ["correct", "incorrect"]:
+                results.append(lines[i])
+            else:
+                results.append("unknown")
+
+        return results
+
     except Exception as e:
-        print(f"[ERROR] Azure GPT call failed: {e}")
-        return "unknown"
-
-def process_line(line: str, client, model_name: str) -> dict:
-    """
-    Process a single JSONL line:
-    1. Parse JSON.
-    2. Call Azure GPT to compare gold vs. model answer.
-    3. Return updated record with "evaluation" field.
-    """
-    try:
-        data = json.loads(line.strip())
-        question = data.get("question", "")
-        gold_answer = data.get("gold_answer", "")
-        model_answer = data.get("model_answer", "")
-
-        evaluation = azure_compare(client, question, gold_answer, model_answer, model_name)
-        data["evaluation"] = evaluation
-        return data
-    except json.JSONDecodeError:
-        # If we cannot parse, return an error record
-        return {"error": "Invalid JSON line", "original_line": line}
+        print(f"[ERROR] Azure GPT batch call failed: {e}", flush=True)
+        # If there's an error, just return "unknown" for each item in the batch
+        return ["unknown"] * len(batch_data)
 
 def main():
     """
-    Sets the required variables and processes input JSONL to evaluate answers using Azure GPT.
+    Reads from 'validation_results.jsonl', processes each record in batches, 
+    writes to 'final_results.jsonl', and prints summary statistics. 
+    (Single-threaded, but batched approach)
     """
-    # Set paths, model name, and worker count directly
+    # Configuration
     input_file = "./validation_results.jsonl"
     output_file = "./final_results.jsonl"
-    model_name = "gpt-4o"
-    max_workers = 3
+    model_name = "gpt-4o-mini"
+    
+    # How many lines per batch
+    BATCH_SIZE = 5
 
     # Initialize Azure GPT client
     client = initialize_client()
 
-    # Read all lines so we know how many there are and to filter out any blank lines
+    # Read all lines (filter out any blank lines)
     with open(input_file, "r", encoding="utf-8") as infile:
         lines = [line for line in infile if line.strip()]
 
     total_count = len(lines)
-    print(f"Found {total_count} lines to process.\n")
+    print(f"Found {total_count} lines to process.\n", flush=True)
 
-    with open(output_file, "w", encoding="utf-8") as outfile, \
-         ThreadPoolExecutor(max_workers=max_workers) as executor:
+    correct_count = 0
+    incorrect_count = 0
+    unknown_count = 0
 
-        # Submit all lines to the thread pool
-        futures = [executor.submit(process_line, line, client, model_name) for line in lines]
+    # Open output file once
+    with open(output_file, "w", encoding="utf-8") as outfile:
+        # Break lines into chunks of BATCH_SIZE
+        line_chunks = list(chunker(lines, BATCH_SIZE))
 
-        # We'll store all completed results so we can compute statistics at the end
-        all_results = []
+        processed_so_far = 0
+        for chunk_idx, chunk in enumerate(line_chunks, start=1):
+            # Parse JSON from each line in this chunk
+            batch_data = []
+            for raw_line in chunk:
+                try:
+                    record = json.loads(raw_line.strip())
+                    batch_data.append({
+                        "question": record.get("question", ""),
+                        "gold_answer": record.get("gold_answer", ""),
+                        "model_answer": record.get("model_answer", "")
+                    })
+                except json.JSONDecodeError:
+                    # In case of malformed lines
+                    batch_data.append({
+                        "question": "",
+                        "gold_answer": "",
+                        "model_answer": ""
+                    })
 
-        # Collect results as they complete
-        for i, future in enumerate(as_completed(futures)):
-            processed_record = future.result()
-            all_results.append(processed_record)
+            # Call GPT once for the entire batch
+            evaluations = azure_compare_batch(client, batch_data, model_name)
 
-            # Write to output file immediately
-            outfile.write(json.dumps(processed_record, ensure_ascii=False) + "\n")
+            # Write each item's result
+            for i, raw_line in enumerate(chunk):
+                processed_so_far += 1
+                eval_result = evaluations[i] if i < len(evaluations) else "unknown"
+
+                try:
+                    record = json.loads(raw_line.strip())
+                except json.JSONDecodeError:
+                    record = {
+                        "error": "Invalid JSON line",
+                        "original_line": raw_line
+                    }
+                record["evaluation"] = eval_result
+
+                # Update counters
+                if eval_result == "correct":
+                    correct_count += 1
+                elif eval_result == "incorrect":
+                    incorrect_count += 1
+                else:
+                    unknown_count += 1
+
+                # Write to file
+                outfile.write(json.dumps(record, ensure_ascii=False) + "\n")
+
             outfile.flush()
 
-            # Print progress: i+1 because i is 0-based
-            print(f"{i+1}/{total_count}")
+            # Print progress for the batch
+            print(
+                f"Processed chunk {chunk_idx}/{len(line_chunks)}. "
+                f"({processed_so_far}/{total_count} lines done)",
+                flush=True
+            )
 
-    # Now compute correctness statistics
-    correct_count = sum(1 for r in all_results if r.get("evaluation") == "correct")
-    incorrect_count = sum(1 for r in all_results if r.get("evaluation") == "incorrect")
-    unknown_count = sum(1 for r in all_results if r.get("evaluation") == "unknown")
-
-    print("\n=== EVALUATION SUMMARY ===")
+    # Final summary
+    print("\n=== EVALUATION SUMMARY ===", flush=True)
     print(f"Correct:   {correct_count}/{total_count} "
-          f"({correct_count / total_count * 100:.2f}%)")
-    print(f"Incorrect: {incorrect_count}")
-    print(f"Unknown:   {unknown_count}")
+          f"({correct_count / total_count * 100:.2f}%)", flush=True)
+    print(f"Incorrect: {incorrect_count}", flush=True)
+    print(f"Unknown:   {unknown_count}", flush=True)
 
 if __name__ == "__main__":
     main()
