@@ -32,8 +32,7 @@ def reformat_jsonl(input_file, output_file):
                 print(f"Skipping line {line_number}: Invalid JSON - {e}")
             except Exception as e:
                 print(f"Error on line {line_number}: {e}")
-
-# Example usage
-input_file = "validation_results_base.jsonl"  # Replace with your input file path
-output_file = "conv_base.jsonl"  # Replace with your desired output file path
-reformat_jsonl(input_file, output_file)
+if __name__ == '__main__':
+    input_file = "./datasets/validation_results_base.jsonl"  # Replace with your input file path
+    output_file = "./datasets/conv_base.jsonl"  # Replace with your desired output file path
+    reformat_jsonl(input_file, output_file)

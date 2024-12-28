@@ -4,19 +4,9 @@ import concurrent.futures
 from threading import Lock
 
 from dotenv import load_dotenv
-from openai import AzureOpenAI
-
+from client import AzureClient
 load_dotenv()
 
-def initialize_client():
-    """
-    Initializes the Azure OpenAI client using environment variables.
-    """
-    return AzureOpenAI(
-        azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-        api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-        api_version="2024-02-01"
-    )
 
 def call_gpt4o(client, question: str) -> str:
     """
@@ -66,10 +56,13 @@ def worker(item, idx, total, file_obj, file_lock, client):
 
 def main():
     input_file = "./mathematics_dataset_json/math_data/train-medium/calculus__differentiate.json"
-    output_file = "./validation_results_base.jsonl"
+    output_file = "./datasets/validation_results_base.jsonl"
 
-    # Initialize the AzureOpenAI client
-    client = initialize_client()
+    client = AzureClient(
+        endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
+        api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+        api_version="2024-02-01"
+    )
 
     print("Loading dataset...")
     with open(input_file, "r", encoding="utf-8") as f:

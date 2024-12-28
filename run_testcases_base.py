@@ -1,3 +1,4 @@
+from client import AzureClient
 import os
 import json
 import concurrent.futures
@@ -64,12 +65,16 @@ def worker(item, idx, total, file_obj, file_lock, client):
         file_obj.write(line + "\n")
         file_obj.flush()
 
+
 def main():
     input_file = "./mathematics_dataset_json/math_data/train-medium/calculus__differentiate.json"
-    output_file = "./validation_results_base.jsonl"
+    output_file = "./datasets/validation_results_base.jsonl"
 
-    # Initialize the AzureOpenAI client
-    client = initialize_client()
+    client = AzureClient(
+        endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
+        api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+        api_version="2024-02-01"
+    )
 
     print("Loading dataset...")
     with open(input_file, "r", encoding="utf-8") as f:

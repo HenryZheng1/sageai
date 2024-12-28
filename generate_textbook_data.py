@@ -7,15 +7,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 load_dotenv()
 
-def initialize_client():
-    """
-    Initialize and return an AzureOpenAI client.
-    """
-    return AzureOpenAI(
-        azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-        api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-        api_version="2024-02-01",
-    )
+
 
 def extract_pdf_to_jsonl(pdf_path, output_jsonl_path):
     """
@@ -95,7 +87,7 @@ def generate_excerpts_from_content(client, input_jsonl, output_jsonl, model_name
     Reads each line from the JSONL file (where each line is a pair of pages),
     and for each line, makes 10 parallel requests to the model (each returning 10 excerpts).
     
-    That yields 100 excerpts (10×10) for every pair of pages.
+    That yields 100 excerpts (10x10) for every pair of pages.
 
     The final output is a JSONL in which each line corresponds to one excerpt,
     including page range and token usage.
@@ -173,15 +165,19 @@ def generate_excerpts_from_content(client, input_jsonl, output_jsonl, model_name
         print(f"Excerpts saved to {output_jsonl}")
     except Exception as e:
         print(f"Error during excerpt generation: {e}")
-
+from client import AzureClient
 if __name__ == "__main__":
     # Initialize client
-    client = initialize_client()
+    client = AzureClient(
+        endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
+        api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+        api_version="2024-02-01"
+    )
 
     # Paths for PDF and output files
-    pdf_path = "./calc.pdf"             # Your PDF path
-    output_jsonl_path = "./output1.jsonl" # Page-paired text
-    excerpts_output_path = "./excerpts.jsonl" # Final JSONL with excerpts
+    pdf_path = "./documents/calc.pdf"             # Your PDF path
+    output_jsonl_path = "./datasets/output1.jsonl" # Page-paired text
+    excerpts_output_path = "./datasets/excerpts.jsonl" # Final JSONL with excerpts
     model_name = "gpt-4o"  # Or your Azure OpenAI model name
 
     # 1) Extract PDF content in pairs

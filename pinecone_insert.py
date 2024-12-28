@@ -2,16 +2,14 @@ import os
 import json
 import uuid
 from dotenv import load_dotenv
+from client import AzureClient, PineconeClient
 
 # Concurrency imports
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # NEW Pinecone classes (2.x+)
 from pinecone import Pinecone
-
 # Azure OpenAI import
-from openai import AzureOpenAI
-
 load_dotenv()
 
 # ------------------------------------------------------------------------------
@@ -26,26 +24,20 @@ PINECONE_INDEX_HOST = os.getenv("PINECONE_INDEX_HOST")
 
 MODEL_NAME = "text-embedding-3-large"
 EMBEDDING_DIMENSION = 3072
+BASE_DIR = './datasets'
 JSONL_FILE = "./qa_pairs_formatted.jsonl"
-
-# ------------------------------------------------------------------------------
-# 2. Initialize Azure OpenAI
-# ------------------------------------------------------------------------------
-client = AzureOpenAI(
-    azure_endpoint=AZURE_OPENAI_ENDPOINT,
+JSONL_FILE = os.path.join(BASE_DIR, JSONL_FILE)
+client = AzureClient(
+    endpoint=AZURE_OPENAI_ENDPOINT,
     api_key=AZURE_OPENAI_API_KEY,
     api_version=AZURE_API_VERSION
 )
 
-# ------------------------------------------------------------------------------
-# 3. Initialize Pinecone client (assumes existing index)
-# ------------------------------------------------------------------------------
-pc = Pinecone(api_key=PINECONE_API_KEY)
-index = pc.Index(host=PINECONE_INDEX_HOST)
+pc = PineconeClient(
+    api_key=PINECONE_API_KEY, index_name=PINECONE_INDEX_HOST
+)
+index = pc.index
 
-# ------------------------------------------------------------------------------
-# 4. Define a function to process a single line
-# ------------------------------------------------------------------------------
 def process_line(line: str) -> str:
     line = line.strip()
     if not line:
@@ -100,7 +92,8 @@ def process_line(line: str) -> str:
 
     # Return the (abbreviated) question for logging
     return question
-
+def test():
+    print(pc.list_indexes())
 # ------------------------------------------------------------------------------
 # 5. Read JSONL, run with 20 threads, and handle results
 # ------------------------------------------------------------------------------
@@ -125,3 +118,4 @@ if __name__ == "__main__":
                 print(f"Error processing line #{line_num}: {e}")
 
     print("All done!")
+    test()
