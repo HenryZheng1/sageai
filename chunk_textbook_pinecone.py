@@ -8,40 +8,14 @@ import tiktoken
 # Concurrency imports
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-# Official OpenAI library (used inside MyOpenAIClient)
-import openai
+# NEW: Import OpenAI class directly
+from openai import OpenAI
 
 # Your custom Pinecone client
-# Make sure `client.py` defines PineconeClient with the required methods.
-# For example: PineconeClient(api_key, index_name) => .index for upserts
 from client import PineconeClient
 
-
 # -------------------------------------------------------------------------------
-# 1. Custom OpenAI Client Wrapper
-# -------------------------------------------------------------------------------
-class MyOpenAIClient:
-    """
-    Simple wrapper to replicate the idea of "client = OpenAI()"
-    but using the official openai library under the hood.
-    """
-    def __init__(self, api_key: str):
-        openai.api_key = api_key  # sets global var in openai library
-        self.api_key = api_key
-
-    def create_embedding(self, text_input: str, model_name: str) -> list[float]:
-        """
-        Create an embedding using the official openai.Embedding.create method.
-        """
-        response = openai.Embedding.create(
-            model=model_name,
-            input=text_input
-        )
-        return response["data"][0]["embedding"]
-
-
-# -------------------------------------------------------------------------------
-# 2. Environment & Config
+# 1. Initialize OpenAI & Pinecone
 # -------------------------------------------------------------------------------
 load_dotenv()
 
@@ -52,8 +26,8 @@ PINECONE_INDEX_HOST = "baserag"
 MODEL_NAME = "text-embedding-3-large"
 EMBEDDING_DIMENSION = 3072  # Example dimension for illustration
 
-# Initialize custom OpenAI client
-openai_client = MyOpenAIClient(api_key=os.getenv("OPENAI_API_KEY"))
+# Initialize the official OpenAI client
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # Initialize Pinecone client
 pc = PineconeClient(
@@ -62,9 +36,8 @@ pc = PineconeClient(
 )
 index = pc.index  # Pinecone index object
 
-
 # -------------------------------------------------------------------------------
-# 3. PDF Reading and Tokenization
+# 2. PDF Reading and Tokenization
 # -------------------------------------------------------------------------------
 def read_pdf_text(pdf_path: str) -> str:
     """
@@ -117,19 +90,19 @@ def chunk_tokens(token_ids: list[int], chunk_size: int = 1000, overlap: int = 25
 
     return chunks
 
-
 # -------------------------------------------------------------------------------
-# 4. Embedding & Upserting to Pinecone
+# 3. Embedding & Upserting to Pinecone
 # -------------------------------------------------------------------------------
 def embed_and_upsert(chunks: list[str], model_name: str = MODEL_NAME):
     """
-    Takes a list of text chunks, gets embeddings from OpenAI (via custom client),
+    Takes a list of text chunks, gets embeddings from OpenAI,
     and upserts them to the Pinecone index. Uses ThreadPoolExecutor for concurrency.
     """
 
     def process_chunk(chunk_text: str):
-        # 1) Get embedding from custom openai client
-        embedding = openai_client.create_embedding(text_input=chunk_text, model_name=model_name)
+        # 1) Get embedding from OpenAI client
+        response = client.embeddings.create(input=chunk_text, model=model_name)
+        embedding = response.data[0].embedding
 
         # 2) Create metadata
         metadata = {"text": chunk_text}
@@ -156,9 +129,8 @@ def embed_and_upsert(chunks: list[str], model_name: str = MODEL_NAME):
             except Exception as e:
                 print(f"[ERROR] Failed to upsert chunk: {chunk_text[:70]}..., Error: {e}")
 
-
 # -------------------------------------------------------------------------------
-# 5. Main Function
+# 4. Main Function
 # -------------------------------------------------------------------------------
 def main():
     """
