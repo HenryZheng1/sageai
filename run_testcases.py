@@ -6,9 +6,11 @@ import concurrent.futures
 from threading import Lock
 
 from dotenv import load_dotenv
-from client import AzureClient, HuggingFaceClient, PerplexityClient
+from client import AzureClient, HuggingFaceClient, PerplexityClient, OpenAI
 
 import argparse
+
+import run_test_cases_base_rag
 
 
 def call_gpt4o(client, question: str) -> str:
@@ -42,6 +44,15 @@ def process_question_with_bot(question, client=None):
     """
     try:
         return bot.process_input(question, client=client)
+    except Exception as e:
+        return f"Error: {e}"
+
+def process_question_with_base_rag(question, client=None):
+    """
+    Calls the bot's `process_input` function to process a single question.
+    """
+    try:
+        return run_test_cases_base_rag.process_input(question, client=client)
     except Exception as e:
         return f"Error: {e}"
 
@@ -124,6 +135,35 @@ def rag_worker(item, idx, total, file_obj, file_lock, client):
         file_obj.write(line + "\n")
         file_obj.flush()
 
+def base_rag_worker(item, idx, total, file_obj, file_lock, client):
+    """
+    Worker function that processes a single dataset item.
+    Writes the result (in JSONL format) to file immediately.
+    Prints progress as "idx/total".
+    """
+    question = item.get("question", "")
+    gold_answer = item.get("answer", "")
+
+    # Call the bot to process the question
+    model_answer = process_question_with_base_rag(question, client=client)
+
+    # Build a result record
+    result_record = {
+        "question": question,
+        "gold_answer": gold_answer,
+        "model_answer": model_answer
+    }
+
+    # Print minimal progress info to console
+    print(f"{idx}/{total}", flush=True)
+
+    # Write to JSONL file
+    # We use a lock so multiple threads don't overwrite each other's data
+    with file_lock:
+        line = json.dumps(result_record, ensure_ascii=False)
+        file_obj.write(line + "\n")
+        file_obj.flush()
+
 def base_worker(item, idx, total, file_obj, file_lock, client):
     """
     Worker function that processes a single dataset item.
@@ -185,18 +225,18 @@ def finetune_worker(item, idx, total, file_obj, file_lock, client):
 def main():
     parser = argparse.ArgumentParser(description="Run testcases")
     parser.add_argument("--input_file", type=str, help="Path to the input file",
-                        default="./mathematics_dataset_json/math_data/train-medium/calculus__differentiate.json")
+                        default="./datasets/math_data/train-medium/calculus__differentiate.json")
     parser.add_argument("--output_file", type=str, help="Path to the output file",
                         default="./datasets/validation_results_base.jsonl")
     parser.add_argument('--client', type=str, help="Client to use",
-                        choices=["azure", "local", 'perplexity'], default="local")
+                        choices=["azure", "local", 'perplexity', "openai"], default="local")
     parser.add_argument('--model_type', type=str, help="Model type to use",
-                        choices=['rag', 'base', 'finetune'], default="base")
+                        choices=['rag', 'base', 'finetune', 'baserag'], default="base")
     args = parser.parse_args()
     client_name = args.client
     base_model = args.model_type
     print(f"Client: {client_name}, Model: {base_model}")
-    input_file = "./mathematics_dataset_json/math_data/train-medium/calculus__differentiate.json"
+    input_file = "./datasets/math_data/train-medium/calculus__differentiate.json"
     output_file = f"./datasets/validation_results_{client_name}_{base_model}.jsonl"
     if client_name == "azure":
         load_dotenv()
@@ -204,6 +244,11 @@ def main():
             endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
             api_key=os.getenv("AZURE_OPENAI_API_KEY"),
             api_version="2024-02-01"
+        )
+    elif client_name == "openai":
+        load_dotenv()
+        client = OpenAI(
+            api_key=os.getenv("OPENAI_OPENAI_API_KEY"),
         )
     elif client_name == "local":
         client = HuggingFaceClient(model_name="gpt2")
@@ -219,6 +264,8 @@ def main():
         worker = finetune_worker
     elif base_model == "rag" and client_name == "perplexity":
         worker = rag_worker_perplexity
+    elif base_model == "baserag":
+        worker = base_rag_worker
     else:
         raise ValueError(f"Unknown model type: {base_model}")
     print(f"Using {base_model} model with {client_name} client")
