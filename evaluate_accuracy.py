@@ -1,3 +1,4 @@
+
 import os
 import json
 from dotenv import load_dotenv
@@ -113,9 +114,10 @@ def main():
     input_file = args.input_file
     output_file = args.output_file
     model_name = args.model_name
+
     
     # How many lines per batch
-    BATCH_SIZE = 5
+    BATCH_SIZE = 1
 
     # Initialize Azure GPT client
     # client = AzureClient(
