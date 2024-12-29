@@ -2,32 +2,36 @@ import os
 import uuid
 from dotenv import load_dotenv
 
-import fitz  # PyMuPDF
+import pymupdf
 import tiktoken
 
 # Concurrency imports
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-# NEW: Import OpenAI class directly
-from openai import OpenAI
-
-# Your custom Pinecone client
-from client import PineconeClient
+# Your custom Azure OpenAI client
+from client import AzureClient, PineconeClient
 
 # -------------------------------------------------------------------------------
-# 1. Initialize OpenAI & Pinecone
+# 1. Initialize Azure OpenAI & Pinecone
 # -------------------------------------------------------------------------------
 load_dotenv()
 
+AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT")
+AZURE_OPENAI_API_KEY = os.getenv("AZURE_OPENAI_API_KEY")
+AZURE_API_VERSION = "2024-02-01"
+
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
-PINECONE_INDEX_HOST = "baserag"
+PINECONE_INDEX_HOST = 'baserag'
 
-# Example of an OpenAI embedding model + dimension
-MODEL_NAME = "text-embedding-3-large"
-EMBEDDING_DIMENSION = 3072  # Example dimension for illustration
+MODEL_NAME = "text-embedding-3-large"  # Your Azure OpenAI embedding deployment name or alias
+EMBEDDING_DIMENSION = 3072            # Adjust if needed
 
-# Initialize the official OpenAI client
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# Initialize custom Azure OpenAI client
+client = AzureClient(
+    endpoint=AZURE_OPENAI_ENDPOINT,
+    api_key=AZURE_OPENAI_API_KEY,
+    api_version=AZURE_API_VERSION
+)
 
 # Initialize Pinecone client
 pc = PineconeClient(
@@ -41,10 +45,10 @@ index = pc.index  # Pinecone index object
 # -------------------------------------------------------------------------------
 def read_pdf_text(pdf_path: str) -> str:
     """
-    Reads all text from a PDF file using PyMuPDF (fitz)
+    Reads all text from a PDF file using PyMuPDF
     and returns the concatenated text.
     """
-    doc = fitz.open(pdf_path)
+    doc = pymupdf.open(pdf_path)
     all_text = []
     for page_num in range(len(doc)):
         text = doc[page_num].get_text()
@@ -95,14 +99,19 @@ def chunk_tokens(token_ids: list[int], chunk_size: int = 1000, overlap: int = 25
 # -------------------------------------------------------------------------------
 def embed_and_upsert(chunks: list[str], model_name: str = MODEL_NAME):
     """
-    Takes a list of text chunks, gets embeddings from OpenAI,
+    Takes a list of text chunks, gets embeddings from Azure OpenAI,
     and upserts them to the Pinecone index. Uses ThreadPoolExecutor for concurrency.
     """
 
     def process_chunk(chunk_text: str):
-        # 1) Get embedding from OpenAI client
-        response = client.embeddings.create(input=chunk_text, model=model_name)
-        embedding = response.data[0].embedding
+        # 1) Get embedding from Azure OpenAI client
+        embedding_response = client.embeddings.create(
+            model=model_name,
+            input=[chunk_text]
+        )
+        
+        # Fix: Access the first embedding via object attributes
+        embedding = embedding_response.data[0].embedding
 
         # 2) Create metadata
         metadata = {"text": chunk_text}
@@ -111,7 +120,15 @@ def embed_and_upsert(chunks: list[str], model_name: str = MODEL_NAME):
         vector_id = str(uuid.uuid4())
 
         # 4) Upsert into Pinecone
-        index.upsert(vectors=[(vector_id, embedding, metadata)])
+        index.upsert(
+            vectors=[
+                {
+                    "id": vector_id,
+                    "values": embedding,
+                    "metadata": metadata
+                }
+            ]
+        )
         return vector_id
 
     # Adjust max_workers as needed
