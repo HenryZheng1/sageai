@@ -16,7 +16,12 @@ PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX_NAME")
 CHAT_MODEL_NAME = "gpt-4o"                   # The name of your Azure OpenAI chat deployment
 EMBED_MODEL_NAME = "text-embedding-3-large"  # The name of your Azure OpenAI embedding model
 
-def process_input(user_input):
+
+def process_input(user_input, client=AzureClient(
+    endpoint=AZURE_OPENAI_ENDPOINT,
+    api_key=AZURE_OPENAI_API_KEY,
+    api_version=AZURE_API_VERSION
+)):
     """
     Processes a single input using Pinecone and GPT-4o.
     
@@ -26,12 +31,6 @@ def process_input(user_input):
     Returns:
         str: The model's response.
     """
-    # Initialize clients
-    client = AzureClient(
-        endpoint=AZURE_OPENAI_ENDPOINT,
-        api_key=AZURE_OPENAI_API_KEY,
-        api_version=AZURE_API_VERSION
-    )
     index = PineconeClient(
         api_key=PINECONE_API_KEY,
         index_name=PINECONE_INDEX_NAME

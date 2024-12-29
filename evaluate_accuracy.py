@@ -1,7 +1,7 @@
 import os
 import json
 from dotenv import load_dotenv
-from client import AzureClient
+from client import AzureClient, LangChainClient
 
 load_dotenv()
 
@@ -66,11 +66,14 @@ def azure_compare_batch(client, batch_data, model_name):
     messages = build_batch_messages(batch_data)
     
     try:
-        response = client.chat.completions.create(
-            model=model_name,
-            messages=messages,
-        )
-        full_response = response.choices[0].message.content.strip()
+        if type(client) == LangChainClient:
+            full_response = client.generate_response(messages)
+        else:
+            response = client.chat.completions.create(
+                model=model_name,
+                messages=messages,
+            )
+            full_response = response.choices[0].message.content.strip()
 
         # The GPT should return one line per item, each "correct" or "incorrect"
         lines = full_response.splitlines()
@@ -90,7 +93,7 @@ def azure_compare_batch(client, batch_data, model_name):
         print(f"[ERROR] Azure GPT batch call failed: {e}", flush=True)
         # If there's an error, just return "unknown" for each item in the batch
         return ["unknown"] * len(batch_data)
-
+import argparse
 def main():
     """
     Reads from 'validation_results.jsonl', processes each record in batches, 
@@ -98,19 +101,29 @@ def main():
     (Single-threaded, but batched approach)
     """
     # Configuration
-    input_file = "./datasets/validation_results.jsonl"
-    output_file = "./datasets/final_results.jsonl"
-    model_name = "gpt-4o-mini"
+    args = argparse.ArgumentParser()
+    args.add_argument("--input_file", type=str, default="./datasets/validation_results_base.jsonl")
+    args.add_argument("--output_file", type=str, default="./datasets/final_results.jsonl")
+    args.add_argument("--model_name", type=str, default="gpt-4o-mini")
+    args = args.parse_args()
+    # input_file = "./datasets/validation_results_base.jsonl"
+    # output_file = "./datasets/final_results.jsonl"
+    # model_name = "gpt-4o-mini"
+
+    input_file = args.input_file
+    output_file = args.output_file
+    model_name = args.model_name
     
     # How many lines per batch
     BATCH_SIZE = 5
 
     # Initialize Azure GPT client
-    client = AzureClient(
-        endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-        api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-        api_version="2024-02-01"
-    )
+    # client = AzureClient(
+    #     endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
+    #     api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+    #     api_version="2024-02-01"
+    # )
+    client = LangChainClient(api_key=os.getenv("OPENAI_API_KEY"))
 
     # Read all lines (filter out any blank lines)
     with open(input_file, "r", encoding="utf-8") as infile:
