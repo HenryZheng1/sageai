@@ -99,12 +99,12 @@ def main():
     (Single-threaded, but batched approach)
     """
     # Configuration
-    input_file = "./datasets/validation_results.jsonl"
-    output_file = "./datasets/final_results.jsonl"
+    input_file = "./datasets/validation_results_base.jsonl"
+    output_file = "./datasets/final_results_base.jsonl"
     model_name = "gpt-4o-mini"
     
     # How many lines per batch
-    BATCH_SIZE = 5
+    BATCH_SIZE = 1
 
     # Initialize Azure GPT client
     client = AzureClient(
